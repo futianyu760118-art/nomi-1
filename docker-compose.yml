@@ -1,0 +1,64 @@
+# One deployment: PMO console (frontend + backend + its MySQL) with the PM
+# engine embedded (deploy/engine), the internal PM backbone; the console
+# UI at :8080 is the single user-facing surface, code management included.
+include:
+  - path: deploy/engine/docker-compose.yml
+    env_file: deploy/engine/variables.env
+
+services:
+  db:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: pmo
+      MYSQL_USER: pmo
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-pmo-local-demo-only}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-pmo-root-local-demo-only}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$${MYSQL_ROOT_PASSWORD}\" --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+  backend:
+    build: ./backend
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      HOST: 0.0.0.0
+      MYSQL_HOST: db
+      MYSQL_USER: pmo
+      MYSQL_DATABASE: pmo
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-pmo-local-demo-only}
+      # Container-side address of the embedded engine; browser-facing
+      # engine URL links keep using the value configured in system settings.
+      PLANE_SERVER_URL: http://proxy:80
+      # SSRF guard allowlist: internal hostnames the console may call (the
+      # bundled engine); any other integration target must resolve publicly.
+      PMO_INTERNAL_TARGETS: proxy
+    volumes:
+      - app_data:/app/data
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/api/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/frontend-thin.Dockerfile
+    ports:
+      - "${PMO_BIND:-127.0.0.1}:${PMO_PORT:-8080}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+volumes:
+  mysql_data:
+  app_data:

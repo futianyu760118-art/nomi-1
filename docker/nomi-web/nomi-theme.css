@@ -1,0 +1,91 @@
+/* NOMI brand overlay for the pristine Plane web bundle.
+   Light mode uses the AEOS ink accent, dark mode the AEOS green. */
+:root,
+:host {
+  --brand-100: oklch(0.965 0.002 285);
+  --brand-200: oklch(0.93 0.003 285);
+  --brand-300: oklch(0.88 0.003 285);
+  --brand-400: oklch(0.8 0.004 285);
+  --brand-500: oklch(0.7 0.004 285);
+  --brand-600: oklch(0.55 0.005 285);
+  --brand-700: oklch(0.42 0.005 285);
+  --brand-800: oklch(0.32 0.004 285);
+  --brand-900: oklch(0.28 0.004 285);
+  --brand-1000: oklch(0.24 0.003 285);
+  --brand-1100: oklch(0.21 0.003 285);
+  --brand-1200: oklch(0.18 0.003 285);
+  --brand-default: oklch(0.213 0.003 285);
+}
+[data-theme*="dark"] {
+  --brand-100: oklch(0.25 0.02 155);
+  --brand-200: oklch(0.3 0.03 155);
+  --brand-300: oklch(0.37 0.04 155);
+  --brand-400: oklch(0.45 0.05 155);
+  --brand-500: oklch(0.52 0.06 155);
+  --brand-600: oklch(0.6 0.09 155);
+  --brand-700: oklch(0.68 0.11 155);
+  --brand-800: oklch(0.75 0.12 155);
+  --brand-900: oklch(0.82 0.1 155);
+  --brand-1000: oklch(0.88 0.07 155);
+  --brand-1100: oklch(0.93 0.04 155);
+  --brand-1200: oklch(0.96 0.02 155);
+  --brand-default: oklch(0.75 0.12 155);
+}
+/* Hide upstream promotion affordances: the GitHub star link (its URL is
+   rewritten to #nomi-hidden by rebrand.sh so this selector can reach it),
+   plus any remaining GitHub/Plane outbound links. */
+a[href="#nomi-hidden"],
+a[href*="github.com"],
+a[href*="plane.so"],
+a[aria-label*="GitHub"],
+a[aria-label*="star"] {
+  display: none !important;
+}
+/* Anti-flash + first-frame lockup: upstream brand marks must never be
+   visible, and the top-left must be branded from the very first paint —
+   stylesheets apply before any script runs, so the anchor holding the
+   Plane lockup gets a pure-CSS NOMI lockup via pseudo-elements. When the
+   injector swaps the svg for the real lockup span, :has() stops matching
+   and the pseudo-elements disappear without a trace. */
+svg[viewBox="0 0 253 53"],
+svg[viewBox="0 0 146 44"],
+svg[viewBox="0 0 85 52"] {
+  display: none !important;
+}
+a:has(> svg[viewBox="0 0 253 53"]) {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none !important;
+}
+a:has(> svg[viewBox="0 0 253 53"])::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: #171719 url("/brand/ztrz-mark-white.png") center / 72% no-repeat;
+}
+a:has(> svg[viewBox="0 0 253 53"])::after {
+  content: "NOMI";
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: inherit;
+}
+[class="flex w-full flex-wrap items-center justify-center gap-x-10 gap-y-4"] {
+  display: none !important;
+}
+/* No boot animation: the LogoSpinner GIF shows while the app hydrates and
+   loads session data. Hide it so a refresh goes straight from the background
+   color to the rendered page. */
+img[src*="logo-spinner"] {
+  display: none !important;
+}
+/* Paid-plan module: the workspace "Billing & plan" nav item and its pricing
+   page are upsell surfaces with no function in this deployment. The page
+   itself is redirected away by the injector; this hides every nav entry
+   pointing at it regardless of workspace slug. */
+a[href$="/settings/billing/"] {
+  display: none !important;
+}
