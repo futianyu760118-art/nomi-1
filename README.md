@@ -137,3 +137,7 @@ ai_inspections、risks、weekly_snapshots、sync_logs、system_settings；另有
   代码核验会向所配置模型服务发送部分代码。
 
 详细约定见 [API 文档](docs/API.md) 与 [接入说明及已知边界](docs/INTEGRATIONS.md)。
+
+## 团队协作
+
+仓库已开放给企业成员：提交、评审请遵循分支规范（feature/* → main），提交信息用中文简述变更。
