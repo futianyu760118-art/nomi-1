@@ -1,0 +1,29 @@
+# Patch build for the deployed server image. nomi-web:prev already contains
+# the pristine Plane base plus the string-level rebrand; this layer swaps the
+# brand injector, replaces the leftover Plane favicon / apple-touch-icon and
+# ships the standalone theme file.
+#
+# The previous entry chunk carries the v1 injector appended by the old build.
+# Bundles are minified to a single line, so the strip MUST be byte-offset
+# based (grep -bo + head -c) — a sed line-delete would remove the whole file.
+FROM nomi-web:prev
+
+COPY icons/ /tmp/nomi-icons/
+COPY nomi-brand.js /usr/share/nginx/html/assets-nomi/nomi-brand.js
+COPY nomi-theme.css /tmp/nomi-theme.css
+RUN set -eux; \
+    cd /usr/share/nginx/html/assets-nomi; \
+    for f in favicon-*.ico; do cp /tmp/nomi-icons/favicon.ico "$f"; done; \
+    for f in icon-180x180-*.png; do cp /tmp/nomi-icons/apple-touch-icon.png "$f"; done; \
+    cp /tmp/nomi-theme.css ./nomi-theme.css; \
+    rm /tmp/nomi-theme.css; \
+    for entry in entry.client-*.js; do \
+      off=$(grep -bo '/\* NOMI brand injector' "$entry" | head -1 | cut -d: -f1); \
+      test -n "$off"; \
+      head -c "$off" "$entry" > /tmp/entry.tmp; \
+      cat nomi-brand.js >> /tmp/entry.tmp; \
+      cp /tmp/entry.tmp "$entry"; \
+      rm /tmp/entry.tmp; \
+      echo "$entry bytes: $(wc -c < "$entry"), injector copies: $(grep -o 'window.__nomiBrand' "$entry" | wc -l)"; \
+    done; \
+    rm -rf /tmp/nomi-icons

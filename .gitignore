@@ -1,0 +1,26 @@
+node_modules/
+dist/
+.venv/
+.venv312/
+.env
+backend/data/
+__pycache__/
+*.pyc
+test-results/
+playwright-report/
+*.log
+
+# Third-party Plane v1.4.2 source drop (extracted zip, ~1GB with node_modules)
+plane-preview/
+
+# Local tool state
+.mimosa/
+
+# Server deployment secrets and data dumps (never leave the machine)
+deploy/server/.env
+deploy/server/variables.env
+deploy/server/secrets.txt
+deploy/server/deploy-info.txt
+deploy/engine/variables.env
+*.tar.gz
+*.sql.gz
