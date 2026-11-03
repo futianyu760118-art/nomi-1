@@ -26,6 +26,7 @@ from .services import (
 from .integrations import IntegrationError, PartialWriteError, GitLabProvider
 from .inspector import inspect_requirement
 from .domain import requirement_fingerprint
+from .person_lifecycle import is_user_active, register_person_lifecycle
 
 
 def create_app(test_config=None):
@@ -61,7 +62,7 @@ def create_app(test_config=None):
     @app.before_request
     def begin():
         g.db = sessions()
-        if request.method in ("POST", "PATCH", "DELETE", "PUT") and not request.path.startswith("/api/webhooks/"):
+        if request.method in ("POST", "PATCH", "DELETE", "PUT") and not request.path.startswith("/api/webhooks/") and request.path != "/internal/aeos/person-lifecycle":
             if request.headers.get("X-PMO-Request") != "1" or not request.is_json:
                 return jsonify(error="请求缺少安全校验头或 JSON Content-Type"), 403
 
@@ -77,6 +78,8 @@ def create_app(test_config=None):
                 user = g.db.get(User, session.get("user_id")) if session.get("user_id") else None
                 if not user:
                     return jsonify(error="请先登录"), 401
+                if not is_user_active(g.db, user):
+                    return jsonify(error="账号已停用，不能继续使用"), 401
                 if admin and user.role != "admin":
                     return jsonify(error="该操作需要管理员权限"), 403
                 g.user = user
@@ -144,7 +147,7 @@ def create_app(test_config=None):
         if not isinstance(body, dict) or not isinstance(body.get("username"), str) or not isinstance(body.get("password"), str):
             raise ValueError("请输入账号和密码")
         user = g.db.scalar(select(User).where(User.username == body["username"]))
-        if not user or not check_password_hash(user.password_hash, body["password"]):
+        if not user or not check_password_hash(user.password_hash, body["password"]) or not is_user_active(g.db, user):
             return jsonify(error="账号或密码错误"), 401
         session.clear()
         session["user_id"] = user.id
@@ -472,4 +475,5 @@ def create_app(test_config=None):
                         run_inspection(row, p)
         return jsonify(status="ok")
 
+    register_person_lifecycle(app)
     return app
