@@ -8,7 +8,28 @@ import time
 from flask import jsonify, request, g
 from sqlalchemy import select
 
-from .models import Requirement, SystemSetting, User
+from .models import Requirement, SystemSetting, User, timestamp
+
+RESULT_STATUSES = {'synced', 'skipped', 'pending_confirmation', 'retrying', 'failed'}
+
+
+def _contract_result(payload, result):
+    status = str(result.get('status') or 'failed').lower()
+    if status in {'stale', 'scheduled'}:
+        status = 'skipped' if status == 'stale' else 'pending_confirmation'
+    if status not in RESULT_STATUSES:
+        status = 'failed'
+    return {
+        **result,
+        'event_id': result.get('event_id') or payload.get('event_id'),
+        'target_system': 'M14_NOMI_1',
+        'status': status,
+        'changed': result.get('changed') or {
+            'reassigned_tasks': len(result.get('reassigned_tasks') or []),
+            'closed_items': len(result.get('closed_items') or []),
+        },
+        'received_at': timestamp(),
+    }
 
 
 def _setting(db, key):
@@ -39,6 +60,9 @@ def _verify():
 
 
 def apply_person_lifecycle(db, payload):
+    configured_tenant = os.getenv('AEOS_TENANT_ID', '').strip()
+    if configured_tenant and payload.get('tenant_id') != configured_tenant:
+        return {'status': 'failed', 'error': '人员同步单位不匹配'}, 403
     for field in ('event_id', 'event_type', 'tenant_id', 'object_id', 'revision', 'idempotency_key', 'person'):
         if payload.get(field) in (None, ''):
             return {'status': 'failed', 'error': f'缺少必填字段：{field}'}, 400
@@ -89,5 +113,7 @@ def register_person_lifecycle(app):
             return jsonify(error='人员同步签名无效'), 401
         payload = request.get_json(silent=True) or {}
         result, status = apply_person_lifecycle(g.db, payload)
+        if payload.get('event_id'):
+            result = _contract_result(payload, result)
         return jsonify(result), status
 
